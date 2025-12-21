@@ -1,0 +1,17 @@
+# --- CBT Platform Dependencies ---
+fastapi
+uvicorn
+python-docx
+sqlalchemy
+python-multipart
+pydantic
+aiofiles
+
+# --- PDF to Audiobook Dependencies ---
+streamlit
+pdfplumber
+pytesseract
+Pillow
+pydub
+numpy
+soundfile
