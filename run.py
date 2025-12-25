@@ -28,5 +28,11 @@ if __name__ == "__main__":
     print(f"Keep this window open while the exam is running.")
     print("="*50)
     
+    # Auto-open browser
+    try:
+        webbrowser.open(f"http://localhost:{port}/")
+    except:
+        pass
+
     sys.path.append(os.path.dirname(os.path.abspath(__file__)))
     uvicorn.run("backend.main:app", host="0.0.0.0", port=port, log_level="info")
