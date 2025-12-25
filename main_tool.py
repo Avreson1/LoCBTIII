@@ -17,7 +17,8 @@ import uuid
 DB_NAME = "results.db"
 ADMIN_PIN = "1234" # Hardcoded for this phase
 LICENSE_FILE = "license.json"
-CLOUD_URL = "http://localhost:8080" # Reference implementation
+# Default to localhost, but allow override via environment variable for Production/PythonAnywhere
+CLOUD_URL = os.getenv("LOCBT_LICENSE_URL", "http://localhost:8080")
 
 class LicenseManager:
     """Handles offline license check and online activation."""

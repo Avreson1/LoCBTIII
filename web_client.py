@@ -8,7 +8,10 @@ import webview
 from flask import Flask, render_template_string, request, jsonify
 
 # --- Configuration ---
-LICENSE_SERVER_URL = "http://localhost:8080/verify-activate" # Placeholder for PythonAnywhere
+# Default to localhost, but allow override via environment variable for Production/PythonAnywhere
+base_url = os.getenv("LOCBT_LICENSE_URL", "http://localhost:8080")
+LICENSE_SERVER_URL = f"{base_url}/verify-activate"
+
 TIMER_DURATION = 10 * 60 # 10 Minutes
 QUESTIONS_FILE = "questions.csv"
 RESULTS_FILE = "results.csv"

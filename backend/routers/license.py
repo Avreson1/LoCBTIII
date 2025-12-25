@@ -10,8 +10,11 @@ import platform
 
 router = APIRouter()
 
+import os
+
 # Configuration
-CLOUD_AUTHORITY_URL = "http://localhost:8080" # In prod, this would be https://license.yourdomain.com
+# Default to localhost, but allow override via environment variable for Production/PythonAnywhere
+CLOUD_AUTHORITY_URL = os.getenv("LOCBT_LICENSE_URL", "http://localhost:8080")
 
 @router.post("/payment/mock")
 def mock_payment():
