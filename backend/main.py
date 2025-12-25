@@ -5,9 +5,12 @@ from backend.routers import auth, admin, student, license
 from fastapi import Request, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from backend.database import SessionLocal
+from backend.database import SessionLocal, engine, Base
 from backend.license_utils import check_license
 import os
+
+# Auto-create tables on startup
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="LoCBTIII API")
 
