@@ -8,10 +8,59 @@ import threading
 import time
 import os
 import datetime
+import json
+import requests
+import platform
+import uuid
 
 # --- Constants & Config ---
 DB_NAME = "results.db"
 ADMIN_PIN = "1234" # Hardcoded for this phase
+LICENSE_FILE = "license.json"
+CLOUD_URL = "http://localhost:8080" # Reference implementation
+
+class LicenseManager:
+    """Handles offline license check and online activation."""
+    def __init__(self):
+        self.key = None
+        self.is_active = False
+        self.check_local()
+
+    def check_local(self):
+        if os.path.exists(LICENSE_FILE):
+            try:
+                with open(LICENSE_FILE, "r") as f:
+                    data = json.load(f)
+                    self.key = data.get("key")
+                    # In a real app, verify signature/hardware ID match here
+                    if data.get("is_active"):
+                        self.is_active = True
+            except:
+                pass
+
+    def activate(self, key):
+        """Calls cloud server to activate."""
+        try:
+            hw_id = platform.node() + "-" + platform.machine()
+            payload = {"key": key, "hardware_id": hw_id}
+            # Timeout set short for UI responsiveness
+            resp = requests.post(f"{CLOUD_URL}/verify-activate", json=payload, timeout=5)
+
+            if resp.status_code == 200:
+                self.key = key
+                self.is_active = True
+                self.save_local()
+                return True, "Activation Successful"
+            elif resp.status_code == 403:
+                return False, "License locked to another machine."
+            else:
+                return False, "Invalid Key"
+        except Exception as e:
+            return False, f"Connection Error: {e}"
+
+    def save_local(self):
+        with open(LICENSE_FILE, "w") as f:
+            json.dump({"key": self.key, "is_active": True, "hw_id": platform.node()}, f)
 
 class DatabaseManager:
     """Handles SQLite connection and result storage."""
@@ -124,11 +173,11 @@ class LoCBTApp(tk.Tk):
         super().__init__()
         self.title("LoCBT Commercial Edition")
         self.geometry("800x600")
-        self.attributes("-fullscreen", True) # Kiosk Mode
 
         # Managers
         self.db_manager = DatabaseManager()
         self.question_manager = QuestionManager()
+        self.license_manager = LicenseManager()
 
         # State
         self.current_frame = None
@@ -143,7 +192,15 @@ class LoCBTApp(tk.Tk):
         # Bindings
         self.bind("<Escape>", self.exit_fullscreen_admin)
 
-        self.show_login()
+        # Check License
+        if not self.license_manager.is_active:
+             self.show_activation()
+        else:
+             self.attributes("-fullscreen", True) # Kiosk Mode Only if Licensed
+             self.show_login()
+
+    def show_activation(self):
+        self.switch_frame(ActivationFrame)
 
     def exit_fullscreen_admin(self, event=None):
         # Secret admin exit (for development/admin usage)
@@ -167,6 +224,37 @@ class LoCBTApp(tk.Tk):
         self.switch_frame(ExamFrame)
 
 # --- Frames ---
+
+class ActivationFrame(tk.Frame):
+    def __init__(self, master):
+        super().__init__(master)
+        self.master = master
+        self.configure(bg="#333")
+
+        container = tk.Frame(self, bg="white", padx=50, pady=50)
+        container.place(relx=0.5, rely=0.5, anchor="center")
+
+        tk.Label(container, text="Software Activation", font=("Helvetica", 20, "bold"), bg="white").pack(pady=20)
+        tk.Label(container, text="This software is unlicensed.", bg="white", fg="red").pack()
+        tk.Label(container, text="Please enter your license key to activate.", bg="white").pack(pady=(0, 20))
+
+        self.key_entry = ttk.Entry(container, width=40)
+        self.key_entry.pack(pady=10)
+
+        ttk.Button(container, text="Activate Online", command=self.activate).pack(pady=20)
+        tk.Label(container, text="Server: " + CLOUD_URL, font=("Arial", 8), fg="gray", bg="white").pack()
+
+    def activate(self):
+        key = self.key_entry.get().strip()
+        if not key: return
+
+        success, msg = self.master.license_manager.activate(key)
+        if success:
+            messagebox.showinfo("Success", "Activation Successful! Restarting...")
+            self.master.attributes("-fullscreen", True)
+            self.master.show_login()
+        else:
+            messagebox.showerror("Activation Failed", msg)
 
 class LoginFrame(tk.Frame):
     def __init__(self, master):

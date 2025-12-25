@@ -4,9 +4,14 @@ from backend.database import get_db
 from backend.models import License
 from backend.schemas import SuccessResponse
 import uuid
+import requests
 from datetime import datetime
+import platform
 
 router = APIRouter()
+
+# Configuration
+CLOUD_AUTHORITY_URL = "http://localhost:8080" # In prod, this would be https://license.yourdomain.com
 
 @router.post("/payment/mock")
 def mock_payment():
@@ -14,11 +19,28 @@ def mock_payment():
     Simulates a payment and returns a valid license key.
     In a real app, this would be a webhook listener for Stripe/PayPal.
     """
-    # Generate a random key
+    # For the mock, we now need to actually register this key with the Cloud Server
+    # so that subsequent activation requests succeed.
+    try:
+        # Admin secret is hardcoded in cloud_license_server.py for this demo
+        headers = {"x-admin-secret": "change_this_to_a_complex_secret_key"}
+        payload = {"client_name": "Mock Customer"}
+        resp = requests.post(f"{CLOUD_AUTHORITY_URL}/generate-key", json=payload, headers=headers)
+        if resp.status_code == 200:
+             data = resp.json()
+             return {
+                "success": True,
+                "message": "Payment successful. Key generated on Cloud.",
+                "license_key": data['key']
+            }
+    except Exception as e:
+        pass
+
+    # Fallback if cloud server is down (just to keep UI working)
     key = str(uuid.uuid4()).upper()
     return {
         "success": True,
-        "message": "Payment successful. Here is your license key.",
+        "message": "Payment successful (Offline Mode).",
         "license_key": key
     }
 
@@ -27,31 +49,40 @@ def activate_license(
     key: str = Body(..., embed=True),
     db: Session = Depends(get_db)
 ):
-    # Check if key already exists (maybe we pre-generated them?)
-    # For this mock, we just trust the key if it looks like a UUID or just insert it as new.
-    # To make it slightly more realistic, let's say any key > 10 chars is valid.
-
-    if len(key) < 10:
-        raise HTTPException(status_code=400, detail="Invalid license key format.")
-
-    # Check if this specific key is already used/active
+    # 1. Local Check: Is it already active?
     existing = db.query(License).filter(License.key == key).first()
-    if existing:
-        if existing.is_active:
-             return SuccessResponse(success=True, message="License already active.")
-        else:
-            existing.is_active = True
-            existing.activated_at = datetime.now().isoformat()
+    if existing and existing.is_active:
+         return SuccessResponse(success=True, message="License already active locally.")
+
+    # 2. Online Verification
+    try:
+        hw_id = platform.node() + "-" + platform.machine()
+        payload = {"key": key, "hardware_id": hw_id}
+        resp = requests.post(f"{CLOUD_AUTHORITY_URL}/verify-activate", json=payload, timeout=5)
+
+        if resp.status_code == 200:
+            # Success!
+            if not existing:
+                new_license = License(
+                    key=key,
+                    is_active=True,
+                    activated_at=datetime.now().isoformat()
+                )
+                db.add(new_license)
+            else:
+                existing.is_active = True
+                existing.activated_at = datetime.now().isoformat()
+
             db.commit()
-            return SuccessResponse(success=True, message="License activated successfully.")
+            return SuccessResponse(success=True, message="License activated via Cloud Authority.")
 
-    # Create new active license
-    new_license = License(
-        key=key,
-        is_active=True,
-        activated_at=datetime.now().isoformat()
-    )
-    db.add(new_license)
-    db.commit()
+        elif resp.status_code == 403:
+            raise HTTPException(status_code=403, detail="License is locked to another machine.")
+        elif resp.status_code == 404:
+            raise HTTPException(status_code=404, detail="Invalid License Key.")
+        else:
+            raise HTTPException(status_code=400, detail=f"Activation Failed: {resp.text}")
 
-    return SuccessResponse(success=True, message="System Activated Successfully!")
+    except requests.exceptions.ConnectionError:
+        # Optional: Allow offline activation code if you implement it
+        raise HTTPException(status_code=503, detail="Could not connect to License Server.")
