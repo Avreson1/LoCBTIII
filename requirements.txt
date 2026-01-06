@@ -1,17 +1,11 @@
-# --- CBT Platform Dependencies ---
 fastapi
 uvicorn
 python-docx
 sqlalchemy
-python-multipart
 pydantic
+python-multipart
 aiofiles
-
-# --- PDF to Audiobook Dependencies ---
-streamlit
-pdfplumber
-pytesseract
-Pillow
-pydub
-numpy
-soundfile
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt
+requests

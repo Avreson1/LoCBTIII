@@ -1,0 +1,20 @@
+
+> frontend@0.0.0 dev
+> vite
+
+
+  VITE v7.3.0  ready in 460 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+11:47:41 AM [vite] (client) Pre-transform error: [postcss] It looks like you're trying to use `tailwindcss` directly as a PostCSS plugin. The PostCSS plugin has moved to a separate package, so to continue using Tailwind CSS with PostCSS you'll need to install `@tailwindcss/postcss` and update your PostCSS configuration.
+  Plugin: vite:css
+  File: /app/frontend/src/index.css:undefined:NaN
+11:47:41 AM [vite] (client) Pre-transform error: [postcss] It looks like you're trying to use `tailwindcss` directly as a PostCSS plugin. The PostCSS plugin has moved to a separate package, so to continue using Tailwind CSS with PostCSS you'll need to install `@tailwindcss/postcss` and update your PostCSS configuration.
+  Plugin: vite:css
+  File: /app/frontend/src/App.css:undefined:NaN
+11:48:10 AM [vite] (client) hmr update /src/App.jsx
+11:48:41 AM [vite] (client) hmr update /src/App.jsx
+11:49:06 AM [vite] (client) hmr update /src/App.jsx
+11:49:35 AM [vite] (client) hmr update /src/App.jsx
+11:59:19 AM [vite] (client) hmr update /src/App.jsx
